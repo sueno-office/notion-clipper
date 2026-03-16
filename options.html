@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Notion Clipper - 設定</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f7f7f5;
+      color: #37352f;
+      padding: 40px;
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 24px; margin-bottom: 8px; }
+    .subtitle { color: #787774; font-size: 14px; margin-bottom: 32px; }
+    .section {
+      background: #fff;
+      border: 1px solid #e9e9e7;
+      border-radius: 8px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .section h2 { font-size: 16px; margin-bottom: 16px; color: #37352f; }
+    label { display: block; font-size: 13px; color: #787774; margin-bottom: 6px; }
+    input[type="text"], input[type="password"] {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #e9e9e7;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #2383e2; }
+    .input-row { display: flex; gap: 8px; align-items: flex-end; }
+    .input-row input { flex: 1; }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-primary { background: #2383e2; color: #fff; }
+    .btn-primary:hover { background: #1a6fc0; }
+    .btn-primary:disabled { background: #a0c3e8; cursor: not-allowed; }
+    .btn-secondary { background: #f0f0ef; color: #37352f; }
+    .btn-secondary:hover { background: #e0e0de; }
+    .btn-danger { background: #eb5757; color: #fff; }
+    .btn-danger:hover { background: #c94040; }
+
+    /* DB一覧 */
+    .db-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid #e9e9e7;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      gap: 10px;
+    }
+    .db-enable {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+    .db-enable input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: #2383e2; }
+    .db-enable-label { font-size: 10px; color: #9b9a97; white-space: nowrap; }
+    .db-info { flex: 1; min-width: 0; }
+    .db-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .db-id { font-size: 11px; color: #9b9a97; margin-top: 2px; font-family: monospace; }
+    .db-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .db-item .btn { padding: 4px 10px; font-size: 12px; }
+
+    /* ステータス */
+    .status {
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-top: 12px;
+      display: none;
+    }
+    .status.success { background: #e6f4e6; color: #2d7a2d; display: block; }
+    .status.error { background: #fce8e8; color: #c0392b; display: block; }
+    .status.info { background: #e8f0fe; color: #1a6fc0; display: block; }
+    .empty-state { text-align: center; padding: 20px; color: #9b9a97; font-size: 14px; }
+    .save-row { margin-top: 16px; display: flex; justify-content: flex-end; }
+    .hint { font-size: 12px; color: #9b9a97; margin-top: 6px; }
+    #db-list { margin-top: 16px; }
+
+    /* DB取得パネル */
+    .fetch-row { display: flex; gap: 8px; margin-bottom: 4px; }
+    #api-db-panel { display: none; margin-top: 16px; }
+    #api-db-panel.visible { display: block; }
+    .search-input {
+      width: 100%;
+      padding: 7px 10px;
+      border: 1px solid #e9e9e7;
+      border-radius: 6px;
+      font-size: 13px;
+      outline: none;
+      margin-bottom: 10px;
+    }
+    .search-input:focus { border-color: #2383e2; }
+    #api-db-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e9e9e7;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .api-db-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      border-bottom: 1px solid #f0f0ef;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .api-db-item:last-child { border-bottom: none; }
+    .api-db-item:hover { background: #f7f7f5; }
+    .api-db-item input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: #2383e2; flex-shrink: 0; }
+    .api-db-item label { font-size: 13px; cursor: pointer; flex: 1; margin-bottom: 0; color: #37352f; }
+    .api-db-item .api-db-id { font-size: 11px; color: #9b9a97; font-family: monospace; }
+    .panel-actions { display: flex; justify-content: space-between; align-items: center; }
+    .select-all-row { font-size: 12px; color: #787774; cursor: pointer; user-select: none; }
+    .select-all-row:hover { color: #37352f; }
+
+    /* 手動追加 */
+    details { margin-top: 16px; }
+    details summary {
+      font-size: 13px;
+      color: #787774;
+      cursor: pointer;
+      user-select: none;
+      padding: 4px 0;
+    }
+    details summary:hover { color: #37352f; }
+    details .manual-body { margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Notion Clipper 設定</h1>
+  <p class="subtitle">APIキーとDatabaseを設定してください</p>
+
+  <!-- APIキー -->
+  <div class="section">
+    <h2>Notion APIキー</h2>
+    <label for="api-key">Integration Token</label>
+    <input type="password" id="api-key" placeholder="secret_xxxxxxxxxxxx">
+    <p class="hint">notion.so/my-integrations から取得できます</p>
+    <div class="save-row">
+      <button class="btn btn-primary" id="save-key-btn">保存</button>
+    </div>
+    <div id="key-status" class="status"></div>
+  </div>
+
+  <!-- Database -->
+  <div class="section">
+    <h2>Database</h2>
+
+    <!-- API取得 -->
+    <label>APIキーでDatabaseを検索して追加</label>
+    <div class="fetch-row">
+      <button class="btn btn-secondary" id="fetch-dbs-btn">全DBを取得</button>
+    </div>
+    <div id="fetch-status" class="status"></div>
+
+    <!-- 取得結果パネル -->
+    <div id="api-db-panel">
+      <input type="text" class="search-input" id="api-db-search" placeholder="DB名で絞り込み...">
+      <div id="api-db-list"></div>
+      <div class="panel-actions">
+        <span class="select-all-row" id="select-all-btn">すべて選択 / 解除</span>
+        <button class="btn btn-primary" id="add-selected-btn">選択したDBを追加</button>
+      </div>
+    </div>
+
+    <!-- 手動追加 -->
+    <details id="manual-details">
+      <summary>手動でIDを入力して追加</summary>
+      <div class="manual-body">
+        <label>Database ID</label>
+        <div class="input-row">
+          <input type="text" id="db-id-input" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+          <button class="btn btn-secondary" id="load-db-btn">読み込み</button>
+        </div>
+        <p class="hint">NotionのページURLの末尾32文字（ハイフンなし）</p>
+        <div id="db-status" class="status"></div>
+      </div>
+    </details>
+
+    <!-- 登録済みDB一覧 -->
+    <div id="db-list">
+      <div class="empty-state">Databaseがまだ追加されていません</div>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
