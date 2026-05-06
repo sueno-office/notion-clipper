@@ -1,3 +1,5 @@
+const DEFAULT_AI_PROMPT = '以下のページを要約してください。\n\nタイトル: {{title}}\nURL: {{url}}\n\n{{body}}';
+
 // ---- 状態表示ヘルパー ----
 function showStatus(el, message, type) {
   el.textContent = message;
@@ -26,17 +28,24 @@ function renderDatabases(databases) {
   // 名前順で表示（storage内の順序は変えない）
   const sorted = [...databases].sort((a, b) => a.name.localeCompare(b.name, 'ja'));
   list.innerHTML = sorted.map(db => `
-    <div class="db-item">
-      <label class="db-enable">
-        <input type="checkbox" class="db-enable-check" data-id="${db.id}" ${db.enabled !== false ? 'checked' : ''}>
-        <span class="db-enable-label">使用する</span>
-      </label>
-      <div class="db-info">
-        <div class="db-name">${escapeHtml(db.name)}</div>
-        <div class="db-id">${db.id}</div>
+    <div class="db-card">
+      <div class="db-item">
+        <label class="db-enable">
+          <input type="checkbox" class="db-enable-check" data-id="${db.id}" ${db.enabled !== false ? 'checked' : ''}>
+          <span class="db-enable-label">使用する</span>
+        </label>
+        <div class="db-info">
+          <div class="db-name">${escapeHtml(db.name)}</div>
+          <div class="db-id">${db.id}</div>
+        </div>
+        <div class="db-actions">
+          <button class="btn btn-secondary" data-id="${db.id}" data-action="refresh">更新</button>
+          <button class="btn btn-danger" data-id="${db.id}" data-action="delete">削除</button>
+        </div>
       </div>
-      <div class="db-actions">
-        <button class="btn btn-danger" data-id="${db.id}" data-action="delete">削除</button>
+      <div class="db-ai-row">
+        <label class="db-ai-label">AIプロンプト <span class="db-ai-hint">（{{title}} {{url}} {{body}} が使えます）</span></label>
+        <textarea class="db-ai-textarea" data-id="${db.id}" placeholder="${escapeHtml(DEFAULT_AI_PROMPT)}">${escapeHtml(db.aiPrompt || '')}</textarea>
       </div>
     </div>
   `).join('');
@@ -47,6 +56,50 @@ function renderDatabases(databases) {
       const db = dbs.find(d => d.id === check.dataset.id);
       if (db) db.enabled = check.checked;
       await chrome.storage.local.set({ databases: dbs });
+    });
+  });
+
+  list.querySelectorAll('[data-action="refresh"]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const status = document.getElementById('fetch-status');
+      const { apiKey } = await chrome.storage.local.get('apiKey');
+      if (!apiKey) { showStatus(status, '先にAPIキーを保存してください', 'error'); return; }
+
+      btn.disabled = true;
+      showStatus(status, 'プロパティを更新中...', 'info');
+      try {
+        const res = await fetch(`https://api.notion.com/v1/databases/${btn.dataset.id}`, {
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Notion-Version': '2022-06-28' }
+        });
+        if (!res.ok) { const err = await res.json(); throw new Error(err.message || res.status); }
+        const data = await res.json();
+        const { databases: dbs = [] } = await chrome.storage.local.get('databases');
+        const db = dbs.find(d => d.id === btn.dataset.id);
+        if (db) {
+          db.properties = parseProperties(data.properties);
+          db.name = extractPlainText(data.title) || db.name;
+        }
+        await chrome.storage.local.set({ databases: dbs });
+        renderDatabases(dbs);
+        showStatus(status, 'プロパティを更新しました', 'success');
+      } catch (e) {
+        showStatus(status, `更新エラー: ${e.message}`, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+  });
+
+  list.querySelectorAll('.db-ai-textarea').forEach(ta => {
+    let saveTimer;
+    ta.addEventListener('input', () => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => {
+        const { databases: dbs = [] } = await chrome.storage.local.get('databases');
+        const db = dbs.find(d => d.id === ta.dataset.id);
+        if (db) db.aiPrompt = ta.value;
+        await chrome.storage.local.set({ databases: dbs });
+      }, 500);
     });
   });
 
@@ -311,12 +364,31 @@ function escapeHtml(str) {
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+// ---- 履歴表示件数 ----
+document.getElementById('save-history-count-btn').addEventListener('click', async () => {
+  const input = document.getElementById('history-count');
+  const status = document.getElementById('history-count-status');
+  const val = Math.min(20, Math.max(0, parseInt(input.value, 10) || 0));
+  input.value = val;
+  await chrome.storage.local.set({ historyCount: val });
+  showStatus(status, '保存しました', 'success');
+});
+
+// ---- Gemini APIキー保存 ----
+document.getElementById('save-gemini-btn').addEventListener('click', async () => {
+  const key = document.getElementById('gemini-key').value.trim();
+  const status = document.getElementById('gemini-status');
+  if (!key) { showStatus(status, 'APIキーを入力してください', 'error'); return; }
+  await chrome.storage.local.set({ geminiApiKey: key });
+  showStatus(status, '保存しました', 'success');
+});
+
 // ---- 初期ロード ----
 async function init() {
-  const { apiKey, databases } = await chrome.storage.local.get(['apiKey', 'databases']);
-  if (apiKey) {
-    document.getElementById('api-key').value = apiKey;
-  }
+  const { apiKey, geminiApiKey, databases, historyCount } = await chrome.storage.local.get(['apiKey', 'geminiApiKey', 'databases', 'historyCount']);
+  if (apiKey) document.getElementById('api-key').value = apiKey;
+  if (geminiApiKey) document.getElementById('gemini-key').value = geminiApiKey;
+  if (historyCount !== undefined) document.getElementById('history-count').value = historyCount;
   renderDatabases(databases || []);
 }
 

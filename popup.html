@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Notion Clipper</title>
+  <title>Notisnap</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -10,17 +10,30 @@
       background: #fff;
       color: #37352f;
       width: 380px;
-      min-height: 200px;
+      height: 520px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      overflow: hidden;
     }
     .header {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      padding: 12px 16px;
+      padding: 8px 12px;
       border-bottom: 1px solid #e9e9e7;
+      gap: 8px;
+      flex-shrink: 0;
     }
-    .header h1 { font-size: 15px; font-weight: 600; }
-    .header-actions { display: flex; gap: 6px; }
+    .header h1 { font-size: 15px; font-weight: 600; white-space: nowrap; }
+    .header-btns { display: flex; gap: 6px; flex: 1; }
+    .header-actions { display: flex; gap: 4px; }
+    .btn-sm { padding: 5px 12px; font-size: 12px; }
     .icon-btn {
       background: none;
       border: none;
@@ -33,6 +46,7 @@
       transition: background 0.1s;
     }
     .icon-btn:hover { background: #f0f0ef; color: #37352f; }
+    .icon-btn.clip-active { background: #e8f0fe; color: #2383e2; }
 
     /* DB選択 */
     .db-selector {
@@ -55,41 +69,111 @@
     }
     select:focus { border-color: #2383e2; }
 
-    /* プリセット */
-    .preset-bar {
-      padding: 8px 16px;
+    /* 2カラムレイアウト */
+    .main-layout {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+      overflow: hidden;
+    }
+    .left-col {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      overflow: hidden;
+    }
+    .right-col {
+      width: 175px;
+      flex-shrink: 0;
+      border-left: 1px solid #e9e9e7;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      font-size: 12px;
+    }
+    .right-section {
+      padding: 8px 10px;
       border-bottom: 1px solid #e9e9e7;
+    }
+    .right-section-header {
       display: flex;
       align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
+      justify-content: space-between;
+      margin-bottom: 5px;
     }
-    .preset-label { font-size: 12px; color: #787774; margin-right: 2px; }
+    .right-section-label { font-size: 11px; color: #9b9a97; display: block; margin-bottom: 5px; }
+    .right-col select {
+      width: 100%;
+      padding: 4px 6px;
+      border: 1px solid #e9e9e7;
+      border-radius: 5px;
+      font-size: 12px;
+      background: #fff;
+      outline: none;
+      cursor: pointer;
+    }
+    .right-col select:focus { border-color: #2383e2; }
+
+    /* プリセット（右カラム縦並び） */
+    #preset-chips { display: flex; flex-direction: column; gap: 3px; }
     .preset-chip {
-      display: inline-flex;
+      display: flex;
+      width: 100%;
       align-items: center;
       gap: 4px;
-      padding: 3px 10px;
+      padding: 4px 7px;
       border: 1px solid #e9e9e7;
-      border-radius: 100px;
-      font-size: 12px;
+      border-radius: 5px;
+      font-size: 11px;
       cursor: pointer;
       background: #fff;
       transition: background 0.1s;
       color: #37352f;
+      text-align: left;
     }
     .preset-chip:hover { background: #f0f0ef; }
     .preset-chip.active { background: #2383e2; color: #fff; border-color: #2383e2; }
+    .preset-chip-inner { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .preset-chip-name { font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .preset-chip .preset-db-badge {
+      font-size: 9px;
+      background: #e9e9e7;
+      padding: 1px 4px;
+      border-radius: 6px;
+      color: #9b9a97;
+      align-self: flex-start;
+    }
+    .preset-chip.active .preset-db-badge {
+      background: rgba(255,255,255,0.25);
+      color: rgba(255,255,255,0.85);
+    }
     .preset-chip .del-chip {
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1;
-      opacity: 0.6;
+      opacity: 0.5;
       cursor: pointer;
+      flex-shrink: 0;
     }
     .preset-chip .del-chip:hover { opacity: 1; }
+    .preset-drag-handle { font-size: 11px; color: #c0c0be; cursor: grab; flex-shrink: 0; padding: 0 2px; }
+    .preset-chip.active .preset-drag-handle { color: rgba(255,255,255,0.6); }
+    .preset-chip.dragging { opacity: 0.4; }
+    .preset-chip.drag-over { border-color: #2383e2; background: #e8f0fe; }
+    .btn-ghost-xs {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #9b9a97;
+      font-size: 16px;
+      line-height: 1;
+      padding: 0 2px;
+      border-radius: 3px;
+    }
+    .btn-ghost-xs:hover { color: #37352f; background: #f0f0ef; }
 
     /* フォーム */
-    .form-area { padding: 12px 16px; max-height: 380px; overflow-y: auto; }
+    .form-area { padding: 12px 16px; flex: 1; min-height: 0; overflow-y: auto; }
     .field { margin-bottom: 12px; }
     .field label {
       display: flex;
@@ -219,15 +303,6 @@
     .url-input-row input[type="checkbox"] { width: 14px; height: 14px; cursor: pointer; accent-color: #2383e2; flex-shrink: 0; }
     .url-blank-label { font-size: 12px; color: #9b9a97; margin-bottom: 0; cursor: pointer; white-space: nowrap; }
 
-    /* フッター */
-    .footer {
-      padding: 10px 16px;
-      border-top: 1px solid #e9e9e7;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
     .btn {
       padding: 7px 16px;
       border: none;
@@ -263,6 +338,109 @@
     .status-bar.success { background: #e6f4e6; color: #2d7a2d; display: block; }
     .status-bar.error { background: #fce8e8; color: #c0392b; display: block; }
     .status-bar.loading { background: #e8f0fe; color: #1a6fc0; display: block; }
+
+    /* 保存履歴 */
+    .history-panel { border-bottom: 1px solid #e9e9e7; }
+    .history-header { padding: 6px 16px 2px; display: flex; align-items: center; }
+    .history-label { font-size: 11px; color: #9b9a97; }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 4px;
+      font-size: 11px;
+      color: #37352f;
+      text-decoration: none;
+      border-radius: 4px;
+      transition: background 0.1s;
+    }
+    .history-item:hover { background: #f0f0ef; }
+    .history-item-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .history-item-db { font-size: 9px; color: #9b9a97; white-space: nowrap; flex-shrink: 0; }
+    .history-saved-badge {
+      font-size: 9px; color: #2d7a2d; background: #e6f4e6;
+      padding: 1px 4px; border-radius: 8px; white-space: nowrap; flex-shrink: 0;
+    }
+    .history-empty { font-size: 11px; color: #c0c0be; padding: 2px 0; }
+    .history-item-wrapper { display: flex; align-items: center; }
+    .history-item-wrapper .history-item { flex: 1; min-width: 0; }
+    .history-del-btn {
+      background: none; border: none; color: #c0c0be; cursor: pointer;
+      font-size: 13px; padding: 2px 4px; flex-shrink: 0;
+      opacity: 0; transition: opacity 0.15s;
+    }
+    .history-item-wrapper:hover .history-del-btn { opacity: 1; }
+    .history-del-btn:hover { color: #eb5757; }
+
+    /* クリップパネル */
+    .clip-panel {
+      padding: 8px 16px;
+      border-bottom: 1px solid #e9e9e7;
+      background: #f8f8f7;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .clip-panel.hidden { display: none; }
+    .clip-row { display: flex; align-items: center; gap: 8px; }
+    .clip-icon { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+    .clip-input {
+      flex: 1;
+      padding: 5px 8px;
+      border: 1px solid #e9e9e7;
+      border-radius: 6px;
+      font-size: 12px;
+      outline: none;
+      background: #fff;
+      min-width: 0;
+    }
+    .clip-input:focus { border-color: #2383e2; }
+    .clip-img-thumb {
+      width: 32px;
+      height: 32px;
+      object-fit: cover;
+      border-radius: 4px;
+      border: 1px solid #e9e9e7;
+      flex-shrink: 0;
+    }
+    .clip-img-thumb.hidden { display: none; }
+    .clip-check { width: 14px; height: 14px; cursor: pointer; accent-color: #2383e2; flex-shrink: 0; }
+    .clip-label { font-size: 12px; color: #37352f; cursor: pointer; }
+    .clip-body-len { font-size: 11px; color: #9b9a97; margin-left: auto; }
+
+    /* カラム区切りリサイズ */
+    .col-divider {
+      width: 5px;
+      flex-shrink: 0;
+      cursor: col-resize;
+      background: transparent;
+      transition: background 0.15s;
+    }
+    .col-divider:hover { background: #e9e9e7; }
+    .col-divider.dragging { background: #2383e2; }
+
+    /* リサイズハンドル */
+    #resize-handle {
+      position: fixed;
+      bottom: 0;
+      right: 0;
+      width: 14px;
+      height: 14px;
+      cursor: nwse-resize;
+      z-index: 9999;
+    }
+    #resize-handle::after {
+      content: '';
+      position: absolute;
+      bottom: 3px;
+      right: 3px;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 0 8px 8px;
+      border-color: transparent transparent #c0c0be transparent;
+    }
+    #resize-handle:hover::after { border-color: transparent transparent #787774 transparent; }
 
     /* プリセット保存ダイアログ */
     .preset-dialog {
@@ -300,8 +478,13 @@
 
   <!-- ヘッダー -->
   <div class="header">
-    <h1>Notion Clipper</h1>
+    <h1>Notisnap</h1>
+    <div class="header-btns">
+      <button class="btn btn-secondary btn-sm" id="clear-btn">クリア</button>
+      <button class="btn btn-primary btn-sm" id="submit-btn">Notionに追加</button>
+    </div>
     <div class="header-actions">
+      <button class="icon-btn" id="clip-mode-btn" title="クリップモード">📎</button>
       <button class="icon-btn" id="open-options" title="設定">⚙</button>
     </div>
   </div>
@@ -326,6 +509,7 @@
     </div>
   </div>
 
+  <div id="resize-handle" title="ドラッグしてサイズ変更"></div>
   <script src="popup.js"></script>
 </body>
 </html>

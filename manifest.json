@@ -1,14 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "Notion Clipper",
+  "name": "Notisnap",
   "version": "1.0.0",
   "description": "NotionのDatabaseにデータを追加する",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
-    "https://api.notion.com/*"
+    "https://api.notion.com/*",
+    "https://generativelanguage.googleapis.com/*",
+    "<all_urls>"
   ],
   "action": {
     "default_popup": "popup.html",
